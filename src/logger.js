@@ -1,10 +1,10 @@
 // Simple file logger that also mirrors to the console.
 //
-// Writes to <userData>/logs/rtsp2ndi.log so the packaged (windowless) app
+// Writes to <userData>/logs/stream2ndi.log so the packaged (windowless) app
 // leaves a trace you can inspect from the tray menu when something fails.
 //
 // The file is truncated on each launch and then size-rotated during a session
-// (rtsp2ndi.log -> .1 -> .2), so a long-running autostart instance can never
+// (stream2ndi.log -> .1 -> .2), so a long-running autostart instance can never
 // grow the logs without bound.
 
 const fs = require("fs");
@@ -37,7 +37,7 @@ function init() {
   } catch (e) {
     /* ignore */
   }
-  logFilePath = path.join(dir, "rtsp2ndi.log");
+  logFilePath = path.join(dir, "stream2ndi.log");
   try {
     // Truncate on each launch so the file reflects the current session.
     fd = fs.openSync(logFilePath, "w");
