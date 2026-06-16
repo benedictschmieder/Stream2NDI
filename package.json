@@ -1,7 +1,7 @@
 {
   "name": "rtsp2ndi",
   "productName": "RTSP2NDI",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Converts RTSP video streams into NDI sources. Works as an RTSP client (subscribe/pull) or an RTSP server (listen for a source pushing to it).",
   "main": "src/main.js",
   "author": "Benedict Schmieder",
