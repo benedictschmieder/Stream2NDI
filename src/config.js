@@ -24,10 +24,11 @@ const path = require("path");
 
 // Per-stream options (each NDI source gets its own values).
 //
-//   mode       "subscribe" : the app connects (pulls) from the given RTSP URL.
-//              "server"     : the app listens on the given RTSP URL and the
+//   mode       "subscribe" : the app connects (pulls) from the given URL.
+//              "server"     : the app listens on the given URL and the
 //                             video source pushes (publishes) to it.
 //   transport  RTSP lower transport: "tcp" (reliable) or "udp" (lower latency).
+//              Applies to rtsp:// URLs only; ignored for rtmp://.
 //   width/height/fps  0 means "auto": in subscribe mode the source is probed
 //                     for its native values; otherwise sensible fallbacks are
 //                     used (1920x1080 @ 30). A non-zero value forces a rescale.

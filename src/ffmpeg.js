@@ -28,15 +28,39 @@ function resolveFfprobePath() {
   return unpacked(p);
 }
 
+// Lower-cased URL scheme (e.g. "rtsp", "rtmp"). Defaults to "rtsp" when the URL
+// has no recognisable scheme so existing bare-RTSP behaviour is preserved.
+function urlScheme(url) {
+  const m = /^([a-z][a-z0-9+.-]*):\/\//i.exec(String(url || ""));
+  return m ? m[1].toLowerCase() : "rtsp";
+}
+
+function isRtmp(scheme) {
+  return scheme === "rtmp" || scheme === "rtmps";
+}
+
+function isRtsp(scheme) {
+  return scheme === "rtsp" || scheme === "rtsps";
+}
+
 // Common input options shared by ffmpeg and ffprobe. `mode === "server"` makes
 // ffmpeg passively listen on the URL and wait for a publisher to push to it;
-// otherwise it actively connects (pulls) from the URL.
+// otherwise it actively connects (pulls) from the URL. The flags differ per
+// protocol: RTSP carries its own transport/listen options, RTMP uses -listen,
+// and the RTSP-only -rtsp_transport must not be passed to other demuxers.
 function inputArgs(cfg) {
   const args = [];
-  if (cfg.mode === "server") {
-    args.push("-rtsp_flags", "listen");
+  const scheme = urlScheme(cfg.url);
+  if (isRtmp(scheme)) {
+    if (cfg.mode === "server") {
+      args.push("-listen", "1");
+    }
+  } else if (isRtsp(scheme)) {
+    if (cfg.mode === "server") {
+      args.push("-rtsp_flags", "listen");
+    }
+    args.push("-rtsp_transport", cfg.transport === "udp" ? "udp" : "tcp");
   }
-  args.push("-rtsp_transport", cfg.transport === "udp" ? "udp" : "tcp");
   return args;
 }
 
@@ -77,11 +101,13 @@ function probe(cfg, timeoutMs = 8000) {
       return;
     }
 
-    const args = [
-      "-v",
-      "error",
-      "-rtsp_transport",
-      cfg.transport === "udp" ? "udp" : "tcp",
+    const args = ["-v", "error"];
+    // -rtsp_transport is an RTSP-only option; passing it to e.g. the RTMP
+    // demuxer makes ffprobe error out, so only add it for RTSP URLs.
+    if (isRtsp(urlScheme(cfg.url))) {
+      args.push("-rtsp_transport", cfg.transport === "udp" ? "udp" : "tcp");
+    }
+    args.push(
       "-select_streams",
       "v:0",
       "-show_entries",
@@ -89,7 +115,7 @@ function probe(cfg, timeoutMs = 8000) {
       "-of",
       "json",
       cfg.url,
-    ];
+    );
 
     let done = false;
     const finish = (value) => {
