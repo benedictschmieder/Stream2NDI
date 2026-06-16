@@ -175,7 +175,9 @@ class Stream {
         return `\u25CF ${this.cfg.ndiName}${this.size ? " @ " + this.size : ""} (${m})`;
       case "connecting":
         return `\u25CB ${this.cfg.ndiName} \u2013 ${
-          this.cfg.mode === "server" ? "waiting for source\u2026" : "connecting\u2026"
+          this.cfg.mode === "server"
+            ? "waiting for source\u2026"
+            : "connecting\u2026"
         }`;
       case "error":
         return `\u26A0 ${this.cfg.ndiName} \u2013 ${this.detail || "see log"}`;

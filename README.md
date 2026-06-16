@@ -4,15 +4,15 @@
 
 # RTSP2NDI
 
-> **RTSP2NDI** converts RTSP video streams into **NDI®** sources on your network. It can either **subscribe** to an RTSP URL (pull from a camera/encoder) or act as an RTSP **server** that a source pushes to.
+> **RTSP2NDI** converts RTSP and RTMP video streams into **NDI®** sources on your network. It can either **subscribe** to a stream URL (pull from a camera/encoder) or act as a **server** that a source pushes to.
 
 > [!WARNING]
 > **Disclaimer:** This app is fully vibecoded and provided as-is without warranty. Review and test it before relying on it in production.
 
-A Windows tray tool for media production and live streaming. Point it at an RTSP source and it appears as an NDI input in NDI-aware software (vMix, OBS with the NDI plugin, TriCaster, Wirecast, …). Each stream can run in one of two modes:
+A Windows tray tool for media production and live streaming. Point it at an RTSP or RTMP source and it appears as an NDI input in NDI-aware software (vMix, OBS with the NDI plugin, TriCaster, Wirecast, …). Each stream can run in one of two modes:
 
-- **Subscribe** – the app connects to and pulls from an RTSP URL the source provides, e.g. an IP camera at `rtsp://192.168.1.50:554/stream1`.
-- **Server** – the app listens on an RTSP URL and the source publishes to it, e.g. a hardware/software encoder pushing to `rtsp://<this-pc>:8554/live`.
+- **Subscribe** – the app connects to and pulls from a stream URL the source provides, e.g. an IP camera at `rtsp://192.168.1.50:554/stream1` or an RTMP feed at `rtmp://host/live/stream`.
+- **Server** – the app listens on a URL and the source publishes to it, e.g. an encoder pushing to `rtsp://<this-pc>:8554/live` or `rtmp://<this-pc>:1935/live/stream`.
 
 Decoding is done with a bundled, static **FFmpeg**; frames are handed to a small custom C++ N-API addon ([`native/ndi_sender.cc`](native/ndi_sender.cc)) that wraps the official NDI 6 SDK and transmits them on the LAN.
 
@@ -26,15 +26,15 @@ You only need the installer (`RTSP2NDI Setup x.y.z.exe`) from the [Releases page
 
 **3. Configure** either with the built-in editor — right-click the tray icon and choose **"Edit configuration…"** for a form with global defaults and one card per stream — or by editing `config.json` next to the exe directly. **Changes are applied automatically** — the app watches the file and reloads its streams a moment after you save, no restart needed.
 
-| Field                    | Meaning                                                                                                                          |
+| Field                    | Meaning                                                                                                                         |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
 | `ndiName`                | Source name shown in your NDI receiver's source list (e.g. "Camera 1"). Must be unique per stream.                              |
-| `mode`                   | `subscribe` (the app pulls from `url`) or `server` (the app listens on `url` and the source pushes to it).                       |
-| `url`                    | Subscribe: the RTSP source to connect to. Server: the address to listen on (e.g. `rtsp://0.0.0.0:8554/live`). **Main setting.** |
-| `transport`              | RTSP lower transport: `tcp` (reliable, default) or `udp` (lower latency, may drop on lossy networks).                           |
+| `mode`                   | `subscribe` (the app pulls from `url`) or `server` (the app listens on `url` and the source pushes to it).                      |
+| `url`                    | Subscribe: the RTSP/RTMP source to connect to. Server: the address to listen on (e.g. `rtsp://0.0.0.0:8554/live` or `rtmp://0.0.0.0:1935/live/stream`). **Main setting.** |
+| `transport`              | RTSP lower transport: `tcp` (reliable, default) or `udp` (lower latency, may drop on lossy networks). RTSP only; ignored for RTMP.                           |
 | `width`, `height`        | Output resolution in pixels. `0` = **auto** (use the source's native size; probed in subscribe mode).                           |
 | `fps`                    | Output frame rate. `0` = **auto** (use the source's native rate).                                                               |
-| `reloadOnFailureSeconds` | Delay before reconnecting/relistening if the source drops or FFmpeg exits.                                                       |
+| `reloadOnFailureSeconds` | Delay before reconnecting/relistening if the source drops or FFmpeg exits.                                                      |
 
 Auto values fall back to **1920×1080 @ 30** when a source can't be probed (always the case in server mode, since nothing has connected yet) — set `width`/`height`/`fps` explicitly there if your source differs.
 
@@ -67,7 +67,7 @@ In the example, the second stream listens on port 8554. A source publishes to it
 ffmpeg -re -i input.mp4 -c copy -f rtsp rtsp://<this-pc-ip>:8554/live
 ```
 
-> **Server mode** uses FFmpeg's RTSP listener and accepts **one publisher per stream**. Make sure the chosen port is allowed through the Windows firewall.
+> **Server mode** uses FFmpeg's RTSP/RTMP listener and accepts **one publisher per stream**. Make sure the chosen port is allowed through the Windows firewall.
 
 **4. Use it in your NDI receiver** by adding an NDI input and picking the source named after your `ndiName`. (Test first with NDI Studio Monitor from NDI Tools.)
 

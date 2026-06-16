@@ -218,13 +218,16 @@
       <section id="streams-section">
         <h2>Streams</h2>
         <p class="hint">
-          Each stream becomes one NDI source. NDI name and RTSP URL are
+          Each stream becomes one NDI source. NDI name and source URL are
           required. In <strong>Subscribe</strong> mode the URL is the source you
-          connect to (e.g. <code>rtsp://camera:554/stream</code>). In
+          connect to (e.g. <code>rtsp://camera:554/stream</code> or
+          <code>rtmp://host/live/stream</code>). In
           <strong>Server</strong> mode the URL is the address this app listens
           on and the source publishes to (e.g.
-          <code>rtsp://0.0.0.0:8554/live</code>). Blank optional fields inherit
-          the global default above.
+          <code>rtsp://0.0.0.0:8554/live</code> or
+          <code>rtmp://0.0.0.0:1935/live/stream</code>). The transport option
+          applies to RTSP only. Blank optional fields inherit the global default
+          above.
         </p>
         <div id="stream-list"></div>
         <button id="add-stream" class="ghost">+ Add stream</button>
@@ -253,7 +256,7 @@
             ["server", "Server (source pushes to URL)"],
           ],
         },
-        { key: "url", label: "RTSP URL", type: "text", perStreamOnly: true, required: true, full: true },
+        { key: "url", label: "Source URL", type: "text", perStreamOnly: true, required: true, full: true },
         {
           key: "transport",
           label: "RTSP transport",
