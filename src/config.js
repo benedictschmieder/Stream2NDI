@@ -1,7 +1,7 @@
 // Loads configuration from config.json with sensible defaults.
 //
 // Resolution order for the config file:
-//   1. The RTSP2NDI_CONFIG environment variable (absolute path), if set.
+//   1. The STREAM2NDI_CONFIG environment variable (absolute path), if set.
 //   2. config.json next to the packaged executable (process.resourcesPath/..).
 //   3. config.json in the project root (development).
 //
@@ -33,7 +33,7 @@ const path = require("path");
 //                     for its native values; otherwise sensible fallbacks are
 //                     used (1920x1080 @ 30). A non-zero value forces a rescale.
 const STREAM_DEFAULTS = {
-  ndiName: "RTSP2NDI",
+  ndiName: "Stream2NDI",
   mode: "subscribe",
   url: "rtsp://127.0.0.1:8554/live",
   transport: "tcp",
@@ -48,8 +48,8 @@ const TRANSPORTS = ["tcp", "udp"];
 
 function candidatePaths() {
   const paths = [];
-  if (process.env.RTSP2NDI_CONFIG) {
-    paths.push(process.env.RTSP2NDI_CONFIG);
+  if (process.env.STREAM2NDI_CONFIG) {
+    paths.push(process.env.STREAM2NDI_CONFIG);
   }
   // Packaged: config.json sits next to the .exe (extraResources -> ../config.json).
   if (process.resourcesPath) {

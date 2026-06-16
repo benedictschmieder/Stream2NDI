@@ -1,4 +1,4 @@
-// FFmpeg/FFprobe integration for RTSP2NDI.
+// FFmpeg/FFprobe integration for Stream2NDI.
 //
 // Resolves the bundled ffmpeg/ffprobe binaries, builds the command line that
 // decodes an RTSP source into a raw BGRA stream, and probes a source for its

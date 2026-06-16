@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="assets/icon.svg" width="120" alt="RTSP2NDI logo" />
+  <img src="assets/icon.svg" width="120" alt="Stream2NDI logo" />
 </p>
 
-# RTSP2NDI
+# Stream2NDI
 
-> **RTSP2NDI** converts RTSP and RTMP video streams into **NDI®** sources on your network. It can either **subscribe** to a stream URL (pull from a camera/encoder) or act as a **server** that a source pushes to.
+> **Stream2NDI** converts RTSP and RTMP video streams into **NDI®** sources on your network. It can either **subscribe** to a stream URL (pull from a camera/encoder) or act as a **server** that a source pushes to.
 
 > [!WARNING]
 > **Disclaimer:** This app is fully vibecoded and provided as-is without warranty. Review and test it before relying on it in production.
@@ -18,11 +18,11 @@ Decoding is done with a bundled, static **FFmpeg**; frames are handed to a small
 
 ## How to use
 
-You only need the installer (`RTSP2NDI Setup x.y.z.exe`) from the [Releases page](../../releases) and the free [NDI Tools / Runtime](https://ndi.video/tools/).
+You only need the installer (`Stream2NDI Setup x.y.z.exe`) from the [Releases page](../../releases) and the free [NDI Tools / Runtime](https://ndi.video/tools/).
 
 **1. Install the NDI Runtime** (one-time, per machine) from https://ndi.video/tools/. This provides the NDI discovery service used by NDI receivers.
 
-**2. Run the installer.** It's a one-click per-user installer (no admin needed) and launches automatically. It installs to `C:\Users\<you>\AppData\Local\Programs\RTSP2NDI\`, with `RTSP2NDI.exe` and `config.json` side by side in that folder. FFmpeg is bundled — no separate install required.
+**2. Run the installer.** It's a one-click per-user installer (no admin needed) and launches automatically. It installs to `C:\Users\<you>\AppData\Local\Programs\Stream2NDI\`, with `Stream2NDI.exe` and `config.json` side by side in that folder. FFmpeg is bundled — no separate install required.
 
 **3. Configure** either with the built-in editor — right-click the tray icon and choose **"Edit configuration…"** for a form with global defaults and one card per stream — or by editing `config.json` next to the exe directly. **Changes are applied automatically** — the app watches the file and reloads its streams a moment after you save, no restart needed.
 
@@ -77,7 +77,7 @@ ffmpeg -re -i input.mp4 -c copy -f rtsp rtsp://<this-pc-ip>:8554/live
 
 ## How it works
 
-A bundled static FFmpeg decodes the RTSP source into raw BGRA frames (scaled to the resolved output geometry). RTSP2NDI reads those frames and re-transmits the most recent one on a steady timer through a small custom C++ N-API addon ([`native/ndi_sender.cc`](native/ndi_sender.cc)) that wraps the official NDI 6 SDK `NDIlib_send_*` API. Re-sending on a timer keeps the NDI source alive across brief network hiccups and means a receiver that connects at any moment immediately gets the current picture. (The common Node binding _grandiose_ only **receives** NDI, so sending is implemented here directly.)
+A bundled static FFmpeg decodes the source into raw BGRA frames (scaled to the resolved output geometry). Stream2NDI reads those frames and re-transmits the most recent one on a steady timer through a small custom C++ N-API addon ([`native/ndi_sender.cc`](native/ndi_sender.cc)) that wraps the official NDI 6 SDK `NDIlib_send_*` API. Re-sending on a timer keeps the NDI source alive across brief network hiccups and means a receiver that connects at any moment immediately gets the current picture. (The common Node binding _grandiose_ only **receives** NDI, so sending is implemented here directly.)
 
 ## Building from source
 

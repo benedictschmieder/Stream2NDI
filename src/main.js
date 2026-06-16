@@ -1,12 +1,12 @@
-// RTSP2NDI - Electron main process
+// Stream2NDI - Electron main process
 //
-// For each configured stream it spawns FFmpeg to decode an RTSP source into raw
-// BGRA frames and forwards them to the native NDI sender addon, which publishes
-// them as an NDI video source on the network.
+// For each configured stream it spawns FFmpeg to decode an RTSP/RTMP source
+// into raw BGRA frames and forwards them to the native NDI sender addon, which
+// publishes them as an NDI video source on the network.
 //
 // Two ingest modes per stream:
-//   subscribe : the app connects to (pulls from) the given RTSP URL.
-//   server    : the app listens on the given RTSP URL and the video source
+//   subscribe : the app connects to (pulls from) the given source URL.
+//   server    : the app listens on the given URL and the video source
 //               pushes (publishes) to it.
 
 const {
@@ -484,7 +484,7 @@ function openConfigEditor() {
   configWin = new BrowserWindow({
     width: 860,
     height: 720,
-    title: "RTSP2NDI \u2013 Configuration",
+    title: "Stream2NDI \u2013 Configuration",
     backgroundColor: "#1e1e1e",
     autoHideMenuBar: true,
     webPreferences: {
@@ -578,7 +578,7 @@ function openLogViewer() {
   logWin = new BrowserWindow({
     width: 960,
     height: 600,
-    title: "RTSP2NDI \u2013 Log",
+    title: "Stream2NDI \u2013 Log",
     backgroundColor: "#1e1e1e",
     autoHideMenuBar: true,
     webPreferences: {
@@ -648,7 +648,7 @@ function updateTray() {
   });
   items.push({ label: "Quit", click: () => app.quit() });
 
-  tray.setToolTip(`RTSP2NDI \u2013 ${traySummary()}`);
+  tray.setToolTip(`Stream2NDI \u2013 ${traySummary()}`);
   tray.setContextMenu(Menu.buildFromTemplate(items));
 }
 
@@ -722,7 +722,7 @@ function startConfigWatch() {
 
 app.whenReady().then(() => {
   console.log(
-    `[start] RTSP2NDI v${app.getVersion()} (electron ${process.versions.electron})`,
+    `[start] Stream2NDI v${app.getVersion()} (electron ${process.versions.electron})`,
   );
   console.log(`[start] ${appConfig.streams.length} stream(s)`);
   appConfig.streams.forEach((s) =>
