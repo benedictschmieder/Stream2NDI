@@ -1,0 +1,17 @@
+node_modules/
+build/
+dist/
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Vendored NDI SDK: commit only the encrypted blob (vendor/ndi-sdk.enc).
+# Never commit the decrypted SDK files or any staging copies.
+vendor/ndi/
+vendor/ndi.zip
+ndi-stage/
+
+# Safety net: never commit a plaintext copy of the NDI SDK.
+NDI 6 SDK/
+NDI 6 SDK.zip

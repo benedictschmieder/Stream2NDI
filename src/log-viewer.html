@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';"
+    />
+    <title>RTSP2NDI — Log</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        font-family:
+          ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo,
+          monospace;
+        font-size: 12px;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+      #toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 6px 10px;
+        background: #252526;
+        border-bottom: 1px solid #333;
+        flex: 0 0 auto;
+        user-select: none;
+      }
+      #toolbar label {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+      }
+      #filter {
+        flex: 1 1 auto;
+        min-width: 80px;
+        background: #1e1e1e;
+        border: 1px solid #3c3c3c;
+        color: #d4d4d4;
+        padding: 3px 6px;
+        border-radius: 3px;
+        font: inherit;
+      }
+      #filter:focus {
+        outline: 1px solid #0e639c;
+      }
+      button {
+        background: #0e639c;
+        border: none;
+        color: #fff;
+        padding: 4px 10px;
+        border-radius: 3px;
+        cursor: pointer;
+        font: inherit;
+      }
+      button:hover {
+        background: #1177bb;
+      }
+      #count {
+        color: #858585;
+        white-space: nowrap;
+      }
+      #log {
+        flex: 1 1 auto;
+        overflow: auto;
+        padding: 6px 10px;
+      }
+      #log.wrap .line {
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .line {
+        white-space: pre;
+        line-height: 1.45;
+        padding: 0 2px;
+      }
+      .line:hover {
+        background: #2a2d2e;
+      }
+      .line.warn {
+        color: #dcdcaa;
+      }
+      .line.error {
+        color: #f48771;
+      }
+      .line.hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="toolbar">
+      <label
+        ><input type="checkbox" id="autoscroll" checked /> Autoscroll</label
+      >
+      <label><input type="checkbox" id="wrap" /> Wrap</label>
+      <input id="filter" type="text" placeholder="Filter… (substring)" />
+      <span id="count">0 lines</span>
+      <button id="clear">Clear</button>
+    </div>
+    <div id="log"></div>
+
+    <script>
+      const logEl = document.getElementById("log");
+      const autoscrollEl = document.getElementById("autoscroll");
+      const wrapEl = document.getElementById("wrap");
+      const filterEl = document.getElementById("filter");
+      const countEl = document.getElementById("count");
+      const clearEl = document.getElementById("clear");
+
+      const MAX_LINES = 5000;
+      let filterText = "";
+
+      function levelOf(line) {
+        // Format: "<iso> [level] message"
+        const m = /^\S+\s+\[(info|warn|error)\]/.exec(line);
+        return m ? m[1] : "info";
+      }
+
+      function matchesFilter(line) {
+        return !filterText || line.toLowerCase().includes(filterText);
+      }
+
+      function atBottom() {
+        return logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 30;
+      }
+
+      function appendLine(line) {
+        const div = document.createElement("div");
+        const level = levelOf(line);
+        div.className = "line" + (level === "info" ? "" : " " + level);
+        div.textContent = line; // textContent => no HTML injection
+        div.dataset.text = line.toLowerCase();
+        if (!matchesFilter(line)) div.classList.add("hidden");
+        logEl.appendChild(div);
+
+        // Cap DOM size.
+        while (logEl.childElementCount > MAX_LINES) {
+          logEl.removeChild(logEl.firstChild);
+        }
+        updateCount();
+      }
+
+      function updateCount() {
+        countEl.textContent = logEl.childElementCount + " lines";
+      }
+
+      function applyFilter() {
+        filterText = filterEl.value.trim().toLowerCase();
+        for (const div of logEl.children) {
+          div.classList.toggle(
+            "hidden",
+            !div.dataset.text.includes(filterText),
+          );
+        }
+      }
+
+      autoscrollEl.addEventListener("change", () => {
+        if (autoscrollEl.checked) logEl.scrollTop = logEl.scrollHeight;
+      });
+      wrapEl.addEventListener("change", () => {
+        logEl.classList.toggle("wrap", wrapEl.checked);
+      });
+      filterEl.addEventListener("input", applyFilter);
+      clearEl.addEventListener("click", () => {
+        logEl.replaceChildren();
+        updateCount();
+      });
+
+      function onNew(line) {
+        const stick = autoscrollEl.checked && atBottom();
+        appendLine(line);
+        if (autoscrollEl.checked && stick) {
+          logEl.scrollTop = logEl.scrollHeight;
+        }
+      }
+
+      window.logApi.onInit((lines) => {
+        const frag = document.createDocumentFragment();
+        const start = Math.max(0, lines.length - MAX_LINES);
+        for (let i = start; i < lines.length; i++) {
+          const line = lines[i];
+          const div = document.createElement("div");
+          const level = levelOf(line);
+          div.className = "line" + (level === "info" ? "" : " " + level);
+          div.textContent = line;
+          div.dataset.text = line.toLowerCase();
+          frag.appendChild(div);
+        }
+        logEl.appendChild(frag);
+        applyFilter();
+        updateCount();
+        if (autoscrollEl.checked) logEl.scrollTop = logEl.scrollHeight;
+      });
+
+      window.logApi.onLine(onNew);
+    </script>
+  </body>
+</html>

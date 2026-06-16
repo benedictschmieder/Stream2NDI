@@ -1,0 +1,132 @@
+name: Build and Release
+
+# Builds the Windows executable (installer) and publishes it.
+#
+# - On a push to main (e.g. after a PR merge): builds and uploads the installer
+#   as a workflow artifact to validate packaging. It does NOT create a Release.
+# - On a version tag push (e.g. v1.0.0): builds and creates a GitHub Release
+#   with the installer attached (only if the tag is on main; see the guard job).
+# - On manual run (workflow_dispatch): builds and uploads the installer as a
+#   workflow artifact you can download from the run page.
+#
+# The native addon is compiled against the NDI 6 SDK that is committed to the
+# repo as an ENCRYPTED blob (vendor/ndi-sdk.enc). The workflow decrypts it at
+# build time using the NDI_SDK_KEY repository secret. See vendor/README.txt.
+#
+# Required one-time setup:
+#   - Add repository secret NDI_SDK_KEY with the passphrase used to encrypt
+#     vendor/ndi-sdk.enc (the encrypted blob is already committed).
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # A git tag is not tied to a branch: a "v*" tag push triggers this workflow no
+  # matter which branch (or no branch) the tagged commit lives on. To keep only
+  # main as the source of public releases, this job verifies that the tagged
+  # commit is contained in main and skips the build/release otherwise.
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      release_ok: ${{ steps.check.outputs.release_ok }}
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag is on main
+        id: check
+        shell: bash
+        run: |
+          # Non-tag runs (push to main, workflow_dispatch) only build artifacts
+          # (the Publish step below is gated on a tag ref), so allow them
+          # through without the on-main ancestry check.
+          if [[ "${GITHUB_REF}" != refs/tags/* ]]; then
+            echo "Non-tag run: build artifacts only, no release."
+            echo "release_ok=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          if git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "Tag ${GITHUB_REF_NAME} is on main - release allowed."
+            echo "release_ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Tag ${GITHUB_REF_NAME} is not on main; skipping build and release."
+            echo "release_ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: guard
+    if: needs.guard.outputs.release_ok == 'true'
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Decrypt NDI SDK
+        shell: pwsh
+        env:
+          NDI_SDK_KEY: ${{ secrets.NDI_SDK_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:NDI_SDK_KEY)) {
+            Write-Error "Repository secret 'NDI_SDK_KEY' is not set. Add the passphrase used to encrypt vendor/ndi-sdk.enc (see vendor/README.txt)."
+            exit 1
+          }
+          if (-not (Test-Path "vendor/ndi-sdk.enc")) {
+            Write-Error "vendor/ndi-sdk.enc not found. Create it with 'node scripts/crypt-ndi.js encrypt <sourceDir>' and commit it (see vendor/README.txt)."
+            exit 1
+          }
+          node scripts/crypt-ndi.js decrypt vendor/ndi-sdk.enc vendor/ndi
+          $required = @(
+            "vendor/ndi/Include/Processing.NDI.Lib.h",
+            "vendor/ndi/Lib/x64/Processing.NDI.Lib.x64.lib",
+            "vendor/ndi/Bin/x64/Processing.NDI.Lib.x64.dll"
+          )
+          $missing = $required | Where-Object { -not (Test-Path $_) }
+          if ($missing) {
+            Write-Error ("Decrypted SDK is missing expected files:`n  " + ($missing -join "`n  "))
+            exit 1
+          }
+          Write-Host "NDI SDK decrypted to vendor/ndi."
+
+      - name: Install dependencies and build native addon
+        run: npm ci
+
+      - name: Package Windows executable
+        run: npm run dist
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: RTSP2NDI-windows
+          path: |
+            dist/*.exe
+            dist/*.blockmap
+            dist/latest.yml
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            dist/*.exe
+            dist/*.blockmap
+            dist/latest.yml
+          generate_release_notes: true
