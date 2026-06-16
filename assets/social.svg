@@ -43,7 +43,7 @@
   <!-- wordmark + tagline -->
   <g font-family="'Helvetica Neue', Helvetica, Arial, sans-serif">
     <text x="430" y="300" font-size="128" font-weight="700" fill="#FFFFFF" letter-spacing="-2">RTSP2NDI</text>
-    <text x="436" y="372" font-size="34" font-weight="400" fill="#9CA3AF">Convert any RTSP stream into a live NDI&#174; video source</text>
+    <text x="436" y="370" font-size="29" font-weight="400" fill="#9CA3AF">Convert any RTSP stream into a live NDI&#174; video source</text>
 
     <!-- feature chips -->
     <g font-size="26" font-weight="600">
