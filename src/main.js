@@ -32,6 +32,15 @@ if (!app.requestSingleInstanceLock()) {
 logger.init();
 logger.patchConsole();
 
+// Pin the Windows Application User Model ID to the installer's appId. Without
+// this, Electron derives a default AUMID at runtime that can differ from the
+// one the NSIS installer baked into the Start Menu shortcut, which desyncs
+// shell integration (notifications, taskbar grouping) and the default name used
+// for the login-item registry entry.
+if (process.platform === "win32") {
+  app.setAppUserModelId("media.stream2ndi.converter");
+}
+
 const {
   loadConfig,
   loadRawConfig,
@@ -52,7 +61,32 @@ const TRAY_ICON_BASE64 = require("./tray-icon");
 // ---------------------------------------------------------------------------
 // Load the native NDI sender addon.
 // ---------------------------------------------------------------------------
+
+// ndi_sender.node links against Processing.NDI.Lib.x64.dll, which is shipped
+// next to the .exe (not next to the unpacked addon). Node loads the addon with
+// LOAD_WITH_ALTERED_SEARCH_PATH, so the addon's own folder becomes the primary
+// DLL search dir and the NDI DLL there is only found via the current working
+// directory. That directory is the app folder on a manual launch but System32
+// when Windows starts us at login, which made the addon load fail (and the app
+// exit) only under autostart. Add the DLL's real locations to PATH so it is
+// resolvable regardless of the working directory.
+function ensureNdiDllOnPath() {
+  const dirs = [
+    path.dirname(process.execPath), // packaged: DLL sits beside the .exe
+    process.resourcesPath || "", // fallback: resources dir
+    path.join(__dirname, "..", "vendor", "ndi", "Bin", "x64"), // dev tree
+  ].filter(Boolean);
+  const current = process.env.PATH || "";
+  const existing = new Set(current.split(path.delimiter));
+  const additions = dirs.filter((d) => !existing.has(d));
+  if (additions.length) {
+    process.env.PATH =
+      additions.join(path.delimiter) + path.delimiter + current;
+  }
+}
+
 function loadAddon() {
+  ensureNdiDllOnPath();
   const candidates = [
     path.join(__dirname, "..", "build", "Release", "ndi_sender.node"),
     // Packaged (asarUnpack) location.
@@ -64,15 +98,17 @@ function loadAddon() {
       "ndi_sender.node",
     ),
   ];
+  let lastErr = null;
   for (const c of candidates) {
     try {
       return require(c);
     } catch (err) {
-      // try next
+      lastErr = err;
     }
   }
   throw new Error(
-    'Could not load native addon ndi_sender.node. Run "npm run build:native".',
+    'Could not load native addon ndi_sender.node. Run "npm run build:native". ' +
+      `Last error: ${lastErr ? lastErr.message : "unknown"}`,
   );
 }
 
@@ -546,9 +582,20 @@ function registerConfigIpc() {
 // ---------------------------------------------------------------------------
 // Autostart (per-user login item; no admin rights or external scripts).
 // ---------------------------------------------------------------------------
+
+// path/args are pinned explicitly so the entry we write and the one we read
+// back always compare equal (getLoginItemSettings only reports openAtLogin as
+// true when the queried path/args match what was registered). "enabled" also
+// flips Windows' "startup approved" state, so an entry a user disabled in Task
+// Manager > Startup gets re-enabled when they re-tick the option here.
+const AUTOSTART_SETTINGS = {
+  path: process.execPath,
+  args: [],
+};
+
 function isAutoStartEnabled() {
   try {
-    return app.getLoginItemSettings().openAtLogin;
+    return app.getLoginItemSettings(AUTOSTART_SETTINGS).openAtLogin;
   } catch (e) {
     return false;
   }
@@ -556,8 +603,29 @@ function isAutoStartEnabled() {
 
 function setAutoStart(enabled) {
   try {
-    app.setLoginItemSettings({ openAtLogin: enabled });
-    console.log(`[autostart] ${enabled ? "enabled" : "disabled"}`);
+    app.setLoginItemSettings({
+      ...AUTOSTART_SETTINGS,
+      openAtLogin: enabled,
+      enabled,
+    });
+    // Read the state back so the log shows whether the OS actually accepted the
+    // change (and, on Windows, whether the entry will really launch at login).
+    const s = app.getLoginItemSettings(AUTOSTART_SETTINGS);
+    console.log(
+      `[autostart] ${enabled ? "enabled" : "disabled"} ` +
+        `(openAtLogin=${s.openAtLogin}` +
+        (typeof s.executableWillLaunchAtLogin === "boolean"
+          ? `, willLaunchAtLogin=${s.executableWillLaunchAtLogin}`
+          : "") +
+        `, target=${process.execPath})`,
+    );
+    if (enabled && !app.isPackaged) {
+      console.warn(
+        "[autostart] app is not packaged; the login item points at the dev " +
+          "Electron binary and will not start Stream2NDI as installed. Test " +
+          "autostart from an installed build.",
+      );
+    }
   } catch (e) {
     console.error("[autostart]", e.message);
   }
